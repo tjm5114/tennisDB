@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html ng-app="app">
+<html>
+  <head>
+    <title>Tennis Court DB Interface</title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+<body>
+
+<ng-view></ng-view>
+
+<!-- Libraries -->
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-route.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-resource.min.js"></script>
+<script src="//localhost:35729/livereload.js"></script>
+  
+
+<!-- Template -->
+<script type="text/ng-template" id="/tenniscourts.html">
+  Search: <input type="text" ng-model="search.name">
+  <ul>
+    <li ng-repeat="tenniscourt in tenniscourts | filter: search">
+      <input type="checkbox" ng-model="tenniscourt.reserved" ng-change="update($index)">
+	  <a ng-show="!editing[$index]" href="#/{{tenniscourt._id}}">{{tenniscourt.name}}</a>
+	  <a ng-show="!editing[$index]">{{tenniscourt.city}}</a>
+	  <button ng-show="!editing[$index]" ng-click="edit($index)">edit</button>
+	  <button ng-show="!editing[$index]" ng-click="remove($index)">remove</button>
+	  
+	  <input ng-show="editing[$index]" type="text" ng-model="tenniscourt.name">
+	  <button ng-show="editing[$index]" ng-click="update($index)">update</button>
+	  <button ng-show="editing[$index]" ng-click="cancel($index)">cancel</button>      
+    </li>
+  </ul>
+  Old Court <input type="text" ng-model="newTennisCourt"><button ng-click="save()">Create</button>
+</script>
+
+<script type="text/ng-template" id="/tennisCourtDetails.html">
+	<h1>Name:</h1>
+	<input type="text" ng-model="tenniscourt.name">
+	</br>
+	<h3>City:</h3>
+	<input type="text" ng-model="tenniscourt.city">
+	</br>
+	<h3>Reserved: <input type="checkbox" ng-model="tenniscourt.reserved"></h3>	
+	<h3>Capacity</h3>
+	<input type="text" ng-model="tenniscourt.capacity">
+	</br>
+	</br>
+	<button ng-click="update()">update</button>
+	<button ng-click="remove()">remove</button>
+	<a href="/">Cancel</a>
+</script>
+
+<script>
+  angular.module('app', ['ngRoute', 'ngResource'])
+
+    //---------------
+    // Services
+    //---------------
+
+    .factory('TennisCourts',['$resource', function($resource){
+		return $resource('/tenniscourts/:id', null, {
+			'update' : {method: 'PUT'}
+		});
+	}])
+	
+
+    //---------------
+    // Controllers
+    //---------------
+
+    .controller('TennisCourtsController', ['$scope', 'TennisCourts', function ($scope, TennisCourts) { 
+		$scope.editing = [];
+		$scope.tenniscourts = TennisCourts.query();
+		
+		$scope.save = function() {
+			if(!$scope.newTennisCourt || $scope.newTennisCourt.length < 1) return;
+			var tenniscourt = new TennisCourts({name: $scope.newTennisCourt, reserved: false});
+			
+			tenniscourt.$save(function(){
+				$scope.tenniscourts.push(tenniscourt);
+				$scope.newTennisCourt ='';
+			});
+		}
+		
+		$scope.update = function(index){
+			var tenniscourt = $scope.tenniscourts[index];
+			TennisCourts.update({id: tenniscourt._id}, tenniscourt);
+			console.log('update button pressed');
+			$scope.editing[index] = false;
+			
+		}
+		
+		$scope.edit = function(index){
+			$scope.editing[index] = angular.copy($scope.tenniscourts[index]);
+		}
+		
+		$scope.cancel = function(index){
+			$scope.tenniscourts[index] = angular.copy($scope.editing[index]);
+			$scope.editing[index] = false;
+		}
+		
+		$scope.remove = function(index){
+			var tenniscourt = $scope.tenniscourts[index];
+			TennisCourts.remove({id: tenniscourt._id}, function(){
+				$scope.tenniscourts.splice(index,1);
+			});
+		}
+		
+	  }])
+    
+
+    .controller('TennisCourtDetailCtrl', ['$scope', '$routeParams', 'TennisCourts', '$location',function ($scope, $routeParams, TennisCourts, $location) {
+      $scope.tenniscourt = TennisCourts.get({id: $routeParams.id});
+	  
+	  $scope.update = function(){
+		TennisCourts.update({id: $scope.tenniscourt._id}, $scope.tenniscourt, function(){
+			$location.url('/');
+		});
+	  }
+	  $scope.remove = function(){
+		TennisCourts.remove({id: $scope.tenniscourt._id}, function(){
+			$location.url('/');
+		});
+	  }
+	  
+	  
+    }])
+
+    //---------------
+    // Routes
+    //---------------
+
+    .config(['$routeProvider', function ($routeProvider) {
+      $routeProvider
+        .when('/', {
+          templateUrl: '/tenniscourts.html',
+          controller: 'TennisCourtsController'
+        })
+
+        .when('/:id', {
+          templateUrl: '/tennisCourtDetails.html',
+          controller: 'TennisCourtDetailCtrl'
+       });
+    }]);
+</script>
+
+</body>
+</html>
